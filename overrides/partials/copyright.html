@@ -1,0 +1,9 @@
+{#- Footer with legal notice link, like in the app -#}
+<div class="md-copyright">
+  {% if config.copyright %}
+    <div class="md-copyright__highlight">
+      {{ config.copyright }}
+    </div>
+  {% endif %}
+  <a href="{{ 'rechtliches/Impressum/' | url }}">Impressum</a>
+</div>

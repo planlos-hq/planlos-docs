@@ -1,0 +1,3101 @@
+openapi: 3.1.0
+info:
+  title: Stundenplanung API
+  description: |
+    API Spezifikation des Stundenplanungstool
+
+    **Hinweis PUT Endpunkte**: Akzeptieren auch partielle Updates (PATCH Semantik)
+  version: 1.0.0
+
+servers:
+  - url: /stundenplan/backend/api/v1/
+    description: Production deployment
+  - url: http://localhost:8004/api/v1/
+    description: Local
+
+tags:
+  - name: Room
+    description: Manage rooms
+  - name: Lecturer
+    description: Manage lecturers and teaching staff
+  - name: Course
+    description: Manage courses
+  - name: DegreeProgram
+    description: Manage degree programs (Studiengänge)
+  - name: StudyGroup
+    description: Manage study groups
+  - name: StudyGroupTemplate
+    description: Manage study group templates
+  - name: StudyGroupTemplateCourse
+    description: Assign courses to study group templates (many-to-many)
+  - name: CourseTimeSlot
+    description: Manage scheduled time slots for courses
+  - name: CourseColor
+    description: Manage color definitions
+  - name: CourseColorAssignment
+    description: Assign colors to courses (many-to-many)
+  - name: CourseLecturer
+    description: Assign lecturers to courses (many-to-many)
+  - name: CourseStudyGroup
+    description: Assign study groups to courses (many-to-many)
+  - name: TimeSlotRoomAssignment
+    description: Assign rooms to course time slots (many-to-many)
+  - name: LecturerNegativeTimeConstraint
+    description: Manage time slots when a lecturer is NOT available
+  - name: GlobalGalaktisch
+    description: Fetch all resources in a single request
+  - name: ResourceConflict
+    description: Detect scheduling conflicts where a room, lecturer, or study group is double-booked in overlapping time slots
+  - name: LecturerTimeConstraintViolation
+    description: Detect cases where a lecturer is scheduled during a time they marked as unavailable
+  - name: ImportExport
+    description: Export and import the full database state as a binary dump
+
+paths:
+  # ─── Room ───────────────────────────────────────────────────────────────
+  /room:
+    get:
+      tags: [Room]
+      operationId: listRooms
+      summary: List all rooms
+      description: Returns an array of all rooms. Returns an empty array if no rooms exist.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Room"
+        "500":
+          description: Internal server error
+    post:
+      tags: [Room]
+      operationId: createRoom
+      summary: Create a new room
+      description: Creates a new room. The `number` field is required.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoomCreate"
+      responses:
+        "201":
+          description: Room created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Room"
+        "400":
+          description: Invalid request body or missing required fields
+        "415":
+          description: Unsupported media type (Content-Type must be application/json)
+        "500":
+          description: Internal server error
+
+  /room/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    get:
+      tags: [Room]
+      operationId: getRoom
+      summary: Get a room by ID
+      description: Returns a single room by its ID.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Room"
+        "404":
+          description: Room not found or invalid ID
+        "500":
+          description: Internal server error
+    put:
+      tags: [Room]
+      operationId: updateRoom
+      summary: Update a room
+      description: |
+        Updates a room by ID. Uses PATCH semantics.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/RoomUpdate"
+                - type: "null"
+      responses:
+        "200":
+          description: Room updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Room"
+        "400":
+          description: Invalid request body
+        "404":
+          description: Invalid ID format
+        "415":
+          description: Unsupported media type
+        "500":
+          description: Internal server error
+    delete:
+      tags: [Room]
+      operationId: deleteRoom
+      summary: Delete a room
+      description: Deletes a room by ID.
+      responses:
+        "200":
+          description: Room deleted successfully
+        "404":
+          description: Room not found or invalid ID
+        "500":
+          description: Internal server error
+
+  # ─── Lecturer ───────────────────────────────────────────────────────────
+  /lecturer:
+    get:
+      tags: [Lecturer]
+      operationId: listLecturers
+      summary: List all lecturers
+      description: Returns an array of all lecturers. Returns an empty array if none exist.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Lecturer"
+        "500":
+          description: Internal server error
+    post:
+      tags: [Lecturer]
+      operationId: createLecturer
+      summary: Create a new lecturer
+      description: |
+        Creates a new lecturer. The fields `first_name`, `last_name`, and `abbreviation` are required.
+        If `is_relevant` is not provided, it defaults to `true`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LecturerCreate"
+      responses:
+        "201":
+          description: Lecturer created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lecturer"
+        "400":
+          description: Invalid request body or missing required fields
+        "415":
+          description: Unsupported media type
+        "500":
+          description: Internal server error
+
+  /lecturer/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    get:
+      tags: [Lecturer]
+      operationId: getLecturer
+      summary: Get a lecturer by ID
+      description: Returns a single lecturer by their ID.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lecturer"
+        "404":
+          description: Lecturer not found or invalid ID
+        "500":
+          description: Internal server error
+    put:
+      tags: [Lecturer]
+      operationId: updateLecturer
+      summary: Update a lecturer
+      description: |
+        Updates a lecturer by ID. Uses PATCH semantics — only provided fields are updated.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/LecturerUpdate"
+                - type: "null"
+      responses:
+        "200":
+          description: Lecturer updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lecturer"
+        "400":
+          description: Invalid request body
+        "404":
+          description: Invalid ID format
+        "415":
+          description: Unsupported media type
+        "500":
+          description: Internal server error
+    delete:
+      tags: [Lecturer]
+      operationId: deleteLecturer
+      summary: Delete a lecturer
+      description: Deletes a lecturer by ID.
+      responses:
+        "200":
+          description: Lecturer deleted successfully
+        "404":
+          description: Lecturer not found or invalid ID
+        "500":
+          description: Internal server error
+
+  # ─── Course ─────────────────────────────────────────────────────────────
+  /course:
+    get:
+      tags: [Course]
+      operationId: listCourses
+      summary: List all courses
+      description: Returns an array of all courses. Returns an empty array if no courses exist.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Course"
+        "500":
+          description: Internal server error
+    post:
+      tags: [Course]
+      operationId: createCourse
+      summary: Create a new course
+      description: |
+        Creates a new course. The fields `number`, `name`, and `abbreviation` are required.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CourseCreate"
+      responses:
+        "201":
+          description: Course created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Course"
+        "400":
+          description: Invalid request body or missing required fields
+        "415":
+          description: Unsupported media type
+        "500":
+          description: Internal server error
+
+  /course/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    get:
+      tags: [Course]
+      operationId: getCourse
+      summary: Get a course by ID
+      description: Returns a single course by its ID.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Course"
+        "404":
+          description: Course not found or invalid ID
+        "500":
+          description: Internal server error
+    put:
+      tags: [Course]
+      operationId: updateCourse
+      summary: Update a course
+      description: |
+        Updates a course by ID. Uses PATCH semantics.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/CourseUpdate"
+                - type: "null"
+      responses:
+        "200":
+          description: Course updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Course"
+        "400":
+          description: Invalid request body
+        "404":
+          description: Invalid ID format
+        "415":
+          description: Unsupported media type
+        "500":
+          description: Internal server error
+    delete:
+      tags: [Course]
+      operationId: deleteCourse
+      summary: Delete a course
+      description: Deletes a course by ID.
+      responses:
+        "200":
+          description: Course deleted successfully
+        "404":
+          description: Course not found or invalid ID
+        "500":
+          description: Internal server error
+
+  # ─── Degree Program ─────────────────────────────────────────────────────
+  /degree-program:
+    get:
+      tags: [DegreeProgram]
+      operationId: listDegreePrograms
+      summary: List all degree programs
+      description: Returns an array of all degree programs. Returns an empty array if none exist.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DegreeProgram"
+        "500":
+          description: Internal server error
+    post:
+      tags: [DegreeProgram]
+      operationId: createDegreeProgram
+      summary: Create a new degree program
+      description: |
+        Creates a new degree program. Both `name` and `abbreviation` are required.
+        Returns 409 Conflict if a degree program with the same name already exists.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DegreeProgramCreate"
+      responses:
+        "201":
+          description: Degree program created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DegreeProgram"
+        "400":
+          description: Invalid request body or missing required fields
+        "409":
+          description: Degree program name already exists (unique constraint violation)
+        "415":
+          description: Unsupported media type
+        "500":
+          description: Internal server error
+
+  /degree-program/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    get:
+      tags: [DegreeProgram]
+      operationId: getDegreeProgram
+      summary: Get a degree program by ID
+      description: Returns a single degree program by its ID.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DegreeProgram"
+        "404":
+          description: Degree program not found or invalid ID
+        "500":
+          description: Internal server error
+    put:
+      tags: [DegreeProgram]
+      operationId: updateDegreeProgram
+      summary: Update a degree program
+      description: |
+        Updates a degree program by ID. Uses PATCH semantics — only provided fields are updated.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/DegreeProgramUpdate"
+                - type: "null"
+      responses:
+        "200":
+          description: Degree program updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DegreeProgram"
+        "400":
+          description: Invalid request body
+        "404":
+          description: Invalid ID format
+        "415":
+          description: Unsupported media type
+        "500":
+          description: Internal server error
+    delete:
+      tags: [DegreeProgram]
+      operationId: deleteDegreeProgram
+      summary: Delete a degree program
+      description: Deletes a degree program by ID.
+      responses:
+        "200":
+          description: Degree program deleted successfully
+        "404":
+          description: Degree program not found or invalid ID
+        "500":
+          description: Internal server error
+
+  # ─── Study Group ────────────────────────────────────────────────────────
+  /study-group:
+    get:
+      tags: [StudyGroup]
+      operationId: listStudyGroups
+      summary: List all study groups
+      description: Returns an array of all study groups. Returns an empty array if none exist.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StudyGroup"
+        "500":
+          description: Internal server error
+    post:
+      tags: [StudyGroup]
+      operationId: createStudyGroup
+      summary: Create a new study group
+      description: |
+        Creates a new study group. All fields but the templates field are required.
+        The `semester_season` must be either `"winter"` or `"summer"`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudyGroupCreate"
+      responses:
+        "201":
+          description: Study group created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudyGroup"
+        "400":
+          description: Invalid request body, missing required fields, or invalid semester_season
+        "415":
+          description: Unsupported media type
+        "500":
+          description: Internal server error
+
+  /study-group/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    get:
+      tags: [StudyGroup]
+      operationId: getStudyGroup
+      summary: Get a study group by ID
+      description: Returns a single study group by its ID.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudyGroup"
+        "404":
+          description: Study group not found or invalid ID
+        "500":
+          description: Internal server error
+    put:
+      tags: [StudyGroup]
+      operationId: updateStudyGroup
+      summary: Update a study group
+      description: |
+        Updates a study group by ID. Uses PATCH semantics.
+        If `semester_season` is provided, it must be either `"winter"` or `"summer"`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/StudyGroupUpdate"
+                - type: "null"
+      responses:
+        "200":
+          description: Study group updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudyGroup"
+        "400":
+          description: Invalid request body or invalid semester_season
+        "404":
+          description: Invalid ID format
+        "415":
+          description: Unsupported media type
+        "500":
+          description: Internal server error
+    delete:
+      tags: [StudyGroup]
+      operationId: deleteStudyGroup
+      summary: Delete a study group
+      description: Deletes a study group by ID.
+      responses:
+        "200":
+          description: Study group deleted successfully
+        "404":
+          description: Study group not found or invalid ID
+        "500":
+          description: Internal server error
+
+  # ─── Study Group Template ───────────────────────────────────────────────
+  /study-group-template:
+    get:
+      tags: [StudyGroupTemplate]
+      operationId: listStudyGroupTemplates
+      summary: List all study group templates
+      description: Returns an array of all study group templates. Returns an empty array if none exist.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StudyGroupTemplate"
+        "500":
+          description: Internal server error
+    post:
+      tags: [StudyGroupTemplate]
+      operationId: createStudyGroupTemplate
+      summary: Create a new study group template
+      description: |
+        Creates a new study group template. All fields are required.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudyGroupTemplateCreate"
+      responses:
+        "201":
+          description: Study group template created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudyGroupTemplate"
+        "400":
+          description: Invalid request body or missing required fields
+        "415":
+          description: Unsupported media type
+        "500":
+          description: Internal server error
+
+  /study-group-template/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    get:
+      tags: [StudyGroupTemplate]
+      operationId: getStudyGroupTemplate
+      summary: Get a study group template by ID
+      description: Returns a single study group template by its ID.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudyGroupTemplate"
+        "404":
+          description: Study group template not found or invalid ID
+        "500":
+          description: Internal server error
+    put:
+      tags: [StudyGroupTemplate]
+      operationId: updateStudyGroupTemplate
+      summary: Update a study group template
+      description: |
+        Updates a study group template by ID. Uses PATCH semantics.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/StudyGroupTemplateUpdate"
+                - type: "null"
+      responses:
+        "200":
+          description: Study group template updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudyGroupTemplate"
+        "400":
+          description: Invalid request body
+        "404":
+          description: Invalid ID format
+        "415":
+          description: Unsupported media type
+        "500":
+          description: Internal server error
+    delete:
+      tags: [StudyGroupTemplate]
+      operationId: deleteStudyGroupTemplate
+      summary: Delete a study group template
+      description: Deletes a study group template by ID.
+      responses:
+        "200":
+          description: Study group template deleted successfully
+        "404":
+          description: Study group template not found or invalid ID
+        "500":
+          description: Internal server error
+
+  # ─── Study Group Template Course (many-to-many) ──────────────────────────────────
+  /study-group-template/{template_id}/courses:
+    parameters:
+      - $ref: "#/components/parameters/StudyGroupTemplateId"
+    get:
+      tags: [StudyGroupTemplateCourse]
+      operationId: getStudyGroupTemplateCourses
+      summary: List courses assigned to a study group template
+      description: |
+        Returns all courses assigned to the specified study group template.
+        Returns 404 if the template does not exist.
+        Returns an empty array if no courses are assigned.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Course"
+        "404":
+          description: Invalid study group template ID format
+        "500":
+          description: Internal server error
+
+  /study-group-template/{template_id}/course/{course_id}:
+    parameters:
+      - $ref: "#/components/parameters/StudyGroupTemplateId"
+      - $ref: "#/components/parameters/CourseId"
+    post:
+      tags: [StudyGroupTemplateCourse]
+      operationId: assignCourseToStudyGroupTemplate
+      summary: Assign a course to a study group template
+      description: |
+        Creates an assignment between a course and a study group template.
+        Both the course and study group template must exist. Returns 409 if the assignment already exists.
+      responses:
+        "201":
+          description: Course assigned to study group template successfully
+        "404":
+          description: Course or study group template not found
+        "409":
+          description: Assignment already exists (unique constraint violation)
+        "500":
+          description: Internal server error
+    delete:
+      tags: [StudyGroupTemplateCourse]
+      operationId: removeCourseFromStudyGroupTemplate
+      summary: Remove a course from a study group template
+      description: Removes the assignment between a course and a study group template.
+      responses:
+        "200":
+          description: Assignment removed successfully
+        "404":
+          description: Assignment not found or invalid ID format
+        "500":
+          description: Internal server error
+
+  # ─── Course Time Slot ───────────────────────────────────────────────────
+  /course-time-slot:
+    get:
+      tags: [CourseTimeSlot]
+      operationId: listCourseTimeSlots
+      summary: List all course time slots
+      description: Returns an array of all course time slots. Returns an empty array if none exist.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CourseTimeSlot"
+        "500":
+          description: Internal server error
+    post:
+      tags: [CourseTimeSlot]
+      operationId: createCourseTimeSlot
+      summary: Create a new course time slot
+      description: |
+        Creates a new time slot for a course. All fields are required.
+        The `weekday` must be between 0 (Sunday) and 6 (Saturday).
+        The referenced `course` must exist.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CourseTimeSlotCreate"
+      responses:
+        "201":
+          description: Course time slot created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseTimeSlot"
+        "400":
+          description: |
+            Invalid request body, missing required fields, invalid weekday,
+            or referenced course does not exist
+        "415":
+          description: Unsupported media type
+        "500":
+          description: Internal server error
+
+  /course-time-slot/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    get:
+      tags: [CourseTimeSlot]
+      operationId: getCourseTimeSlot
+      summary: Get a course time slot by ID
+      description: Returns a single course time slot by its ID.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseTimeSlot"
+        "404":
+          description: Course time slot not found or invalid ID
+        "500":
+          description: Internal server error
+    put:
+      tags: [CourseTimeSlot]
+      operationId: updateCourseTimeSlot
+      summary: Update a course time slot
+      description: |
+        Updates a course time slot by ID. Uses PATCH semantics.
+        If `weekday` is provided, it must be between 0 and 6.
+        If `course` is provided, the referenced course must exist.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/CourseTimeSlotUpdate"
+                - type: "null"
+      responses:
+        "200":
+          description: Course time slot updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseTimeSlot"
+        "400":
+          description: Invalid request body, invalid weekday
+        "404":
+          description: Invalid ID format or referenced course does not exist
+        "415":
+          description: Unsupported media type
+        "500":
+          description: Internal server error
+    delete:
+      tags: [CourseTimeSlot]
+      operationId: deleteCourseTimeSlot
+      summary: Delete a course time slot
+      description: Deletes a course time slot by ID.
+      responses:
+        "200":
+          description: Course time slot deleted successfully
+        "404":
+          description: Course time slot not found or invalid ID
+        "500":
+          description: Internal server error
+
+  # ─── Course Color ───────────────────────────────────────────────────────
+  /course-color:
+    get:
+      tags: [CourseColor]
+      operationId: listCourseColors
+      summary: List all course colors
+      description: Returns an array of all course color definitions. Returns an empty array if none exist.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CourseColor"
+        "500":
+          description: Internal server error
+    post:
+      tags: [CourseColor]
+      operationId: createCourseColor
+      summary: Create a new course color
+      description: |
+        Creates a new course color definition. Both `name` and `hex` are required.
+        The `hex` value must match the pattern `#RRGGBB` (e.g. `#FF5733`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CourseColorCreate"
+      responses:
+        "201":
+          description: Course color created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseColor"
+        "400":
+          description: Invalid request body, missing required fields, or invalid hex format
+        "415":
+          description: Unsupported media type
+        "500":
+          description: Internal server error
+
+  /course-color/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    get:
+      tags: [CourseColor]
+      operationId: getCourseColor
+      summary: Get a course color by ID
+      description: Returns a single course color by its ID.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseColor"
+        "404":
+          description: Course color not found or invalid ID
+        "500":
+          description: Internal server error
+    put:
+      tags: [CourseColor]
+      operationId: updateCourseColor
+      summary: Update a course color
+      description: |
+        Updates a course color by ID. Uses PATCH semantics.
+        If `hex` is provided, it must match the pattern `#RRGGBB`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/CourseColorUpdate"
+                - type: "null"
+      responses:
+        "200":
+          description: Course color updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseColor"
+        "400":
+          description: Invalid request body or invalid hex format
+        "404":
+          description: Invalid ID format TODO 404 for non existing IDs
+        "415":
+          description: Unsupported media type
+        "500":
+          description: Internal server error
+    delete:
+      tags: [CourseColor]
+      operationId: deleteCourseColor
+      summary: Delete a course color
+      description: Deletes a course color by ID.
+      responses:
+        "200":
+          description: Course color deleted successfully
+        "404":
+          description: Course color not found or invalid ID
+        "500":
+          description: Internal server error
+
+  # ─── Course Lecturer (many-to-many) ──────────────────────────────────
+  /course/{course_id}/lecturers:
+    parameters:
+      - $ref: "#/components/parameters/CourseId"
+    get:
+      tags: [CourseLecturer]
+      operationId: getCourseLecturers
+      summary: List lecturers assigned to a course
+      description: |
+        Returns all lecturers assigned to the specified course.
+        Returns an empty array if no lecturers are assigned.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Lecturer"
+        "404":
+          description: Invalid course ID format
+        "500":
+          description: Internal server error
+
+  /course/{course_id}/lecturer/{lecturer_id}:
+    parameters:
+      - $ref: "#/components/parameters/CourseId"
+      - $ref: "#/components/parameters/LecturerId"
+    post:
+      tags: [CourseLecturer]
+      operationId: assignLecturerToCourse
+      summary: Assign a lecturer to a course
+      description: |
+        Creates an assignment between a course and a lecturer.
+        Both the course and lecturer must exist. Returns 409 if the assignment already exists.
+      responses:
+        "201":
+          description: Lecturer assigned to course successfully
+        "404":
+          description: Course or lecturer not found
+        "409":
+          description: Assignment already exists (unique constraint violation)
+        "500":
+          description: Internal server error
+    delete:
+      tags: [CourseLecturer]
+      operationId: removeLecturerFromCourse
+      summary: Remove a lecturer from a course
+      description: Removes the assignment between a course and a lecturer.
+      responses:
+        "200":
+          description: Assignment removed successfully
+        "404":
+          description: Assignment not found or invalid ID format
+        "500":
+          description: Internal server error
+
+  # ─── Course Study Group (many-to-many) ───────────────────────────────
+  /course/{course_id}/study-groups:
+    parameters:
+      - $ref: "#/components/parameters/CourseId"
+    get:
+      tags: [CourseStudyGroup]
+      operationId: getCourseStudyGroups
+      summary: List study groups assigned to a course
+      description: |
+        Returns all study groups assigned to the specified course.
+        Returns 404 if the course does not exist.
+        Returns an empty array if no study groups are assigned.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StudyGroup"
+        "404":
+          description: Course not found or invalid ID format
+        "500":
+          description: Internal server error
+
+  /course/{course_id}/study-group/{study_group_id}:
+    parameters:
+      - $ref: "#/components/parameters/CourseId"
+      - name: study_group_id
+        in: path
+        required: true
+        description: Study group ID
+        schema:
+          type: integer
+    post:
+      tags: [CourseStudyGroup]
+      operationId: assignStudyGroupToCourse
+      summary: Assign a study group to a course
+      description: |
+        Creates an assignment between a course and a study group.
+        Both the course and study group must exist. Returns 409 if the assignment already exists.
+      responses:
+        "201":
+          description: Study group assigned to course successfully
+        "404":
+          description: Course or study group not found
+        "409":
+          description: Assignment already exists (unique constraint violation)
+        "500":
+          description: Internal server error
+    delete:
+      tags: [CourseStudyGroup]
+      operationId: removeStudyGroupFromCourse
+      summary: Remove a study group from a course
+      description: Removes the assignment between a course and a study group.
+      responses:
+        "200":
+          description: Assignment removed successfully
+        "404":
+          description: Assignment not found or invalid ID format
+        "500":
+          description: Internal server error
+
+  # ─── Course ↔ Color (many-to-many) ─────────────────────────────────────
+  /course/{course_id}/colors:
+    parameters:
+      - $ref: "#/components/parameters/CourseId"
+    get:
+      tags: [CourseColorAssignment]
+      operationId: getCourseColors
+      summary: List colors assigned to a course
+      description: |
+        Returns all colors assigned to the specified course.
+        Returns 404 if the course does not exist.
+        Returns an empty array if no colors are assigned.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CourseColor"
+        "404":
+          description: Course not found or invalid ID format
+        "500":
+          description: Internal server error
+
+  /course/{course_id}/color/{color_id}:
+    parameters:
+      - $ref: "#/components/parameters/CourseId"
+      - name: color_id
+        in: path
+        required: true
+        description: Course color ID
+        schema:
+          type: integer
+    post:
+      tags: [CourseColorAssignment]
+      operationId: assignColorToCourse
+      summary: Assign a color to a course
+      description: |
+        Creates an assignment between a course and a color.
+        Both the course and color must exist. Returns 409 if the assignment already exists.
+      responses:
+        "201":
+          description: Color assigned to course successfully
+        "404":
+          description: Course or color not found
+        "409":
+          description: Assignment already exists (unique constraint violation)
+        "500":
+          description: Internal server error
+    delete:
+      tags: [CourseColorAssignment]
+      operationId: removeColorFromCourse
+      summary: Remove a color from a course
+      description: Removes the assignment between a course and a color.
+      responses:
+        "200":
+          description: Assignment removed successfully
+        "404":
+          description: Assignment not found or invalid ID format
+        "500":
+          description: Internal server error
+
+  # ─── Time Slot ↔ Room (many-to-many) ───────────────────────────────────
+  /course-time-slot/{time_slot_id}/rooms:
+    parameters:
+      - $ref: "#/components/parameters/TimeSlotId"
+    get:
+      tags: [TimeSlotRoomAssignment]
+      operationId: getTimeSlotRooms
+      summary: List rooms assigned to a course time slot
+      description: |
+        Returns all rooms assigned to the specified course time slot.
+        Returns 404 if the course time slot does not exist.
+        Returns an empty array if no rooms are assigned.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Room"
+        "404":
+          description: Course time slot not found or invalid ID format
+        "500":
+          description: Internal server error
+
+  /course-time-slot/{time_slot_id}/room/{room_id}:
+    parameters:
+      - $ref: "#/components/parameters/TimeSlotId"
+      - $ref: "#/components/parameters/RoomId"
+    post:
+      tags: [TimeSlotRoomAssignment]
+      operationId: assignRoomToTimeSlot
+      summary: Assign a room to a course time slot
+      description: |
+        Creates an assignment between a course time slot and a room.
+        Both the course time slot and room must exist. Returns 409 if the assignment already exists.
+      responses:
+        "201":
+          description: Room assigned to course time slot successfully
+        "404":
+          description: Course time slot or room not found
+        "409":
+          description: Assignment already exists (unique constraint violation)
+        "500":
+          description: Internal server error
+    delete:
+      tags: [TimeSlotRoomAssignment]
+      operationId: removeRoomFromTimeSlot
+      summary: Remove a room from a course time slot
+      description: Removes the assignment between a course time slot and a room.
+      responses:
+        "200":
+          description: Assignment removed successfully
+        "404":
+          description: Assignment not found or invalid ID format
+        "500":
+          description: Internal server error
+
+  /course-time-slot/rooms:
+    get:
+      tags: [TimeSlotRoomAssignment]
+      operationId: listTimeSlotRoomAssignments
+      summary: List all time slot room assignments
+      description: Returns an array of all time slot room assignments. Returns an empty array if none exist.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TimeSlotRoomAssignment"
+        "500":
+          description: Internal server error
+
+  # ─── Global Galaktisch ──────────────────────────────────────────────────
+  /global-galaktisch:
+    get:
+      tags: [GlobalGalaktisch]
+      operationId: getGlobalGalaktisch
+      summary: Get all resources in a single request
+      description: |
+        Returns an aggregated response containing all resources (courses, lecturers, rooms,
+        degree programs, study groups, time slots, colors, and all assignments) in a single request.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GlobalGalaktisch"
+        "500":
+          description: Internal server error
+
+  # ─── Lecturer Negative Time Constraint ──────────────────────────────────
+  /lecturer-negative-time-constraint:
+    post:
+      tags: [LecturerNegativeTimeConstraint]
+      operationId: createLecturerNegativeTimeConstraint
+      summary: Create a new lecturer negative time constraint
+      description: |
+        Creates a new time constraint indicating when a lecturer is NOT available.
+        All fields are required.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LecturerNegativeTimeConstraintCreate"
+      responses:
+        "201":
+          description: Constraint created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LecturerNegativeTimeConstraint"
+        "400":
+          description: Invalid request body or missing required fields
+        "415":
+          description: Unsupported media type
+        "500":
+          description: Internal server error
+
+  /lecturer-negative-time-constraint/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    get:
+      tags: [LecturerNegativeTimeConstraint]
+      operationId: getLecturerNegativeTimeConstraint
+      summary: Get a lecturer negative time constraint by ID
+      description: Returns a single lecturer negative time constraint by its ID.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LecturerNegativeTimeConstraint"
+        "404":
+          description: Constraint not found or invalid ID
+        "500":
+          description: Internal server error
+    put:
+      tags: [LecturerNegativeTimeConstraint]
+      operationId: updateLecturerNegativeTimeConstraint
+      summary: Update a lecturer negative time constraint
+      description: |
+        Updates a lecturer negative time constraint by ID. Uses PATCH semantics —
+        only provided fields are updated.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/LecturerNegativeTimeConstraintUpdate"
+                - type: "null"
+      responses:
+        "200":
+          description: Constraint updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LecturerNegativeTimeConstraint"
+        "400":
+          description: Invalid request body
+        "404":
+          description: Invalid ID format
+        "415":
+          description: Unsupported media type
+        "500":
+          description: Internal server error
+    delete:
+      tags: [LecturerNegativeTimeConstraint]
+      operationId: deleteLecturerNegativeTimeConstraint
+      summary: Delete a lecturer negative time constraint
+      description: Deletes a lecturer negative time constraint by ID.
+      responses:
+        "200":
+          description: Constraint deleted successfully
+        "404":
+          description: Constraint not found or invalid ID
+        "500":
+          description: Internal server error
+
+  /lecturer/{id}/negative-time-constraint:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    get:
+      tags: [LecturerNegativeTimeConstraint]
+      operationId: getLecturerNegativeTimeConstraints
+      summary: List negative time constraints for a lecturer
+      description: |
+        Returns all negative time constraints for the specified lecturer.
+        Returns an empty array if no constraints exist.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LecturerNegativeTimeConstraint"
+        "404":
+          description: Invalid lecturer ID format
+        "500":
+          description: Internal server error
+
+  # ─── Resource Constraint Violations ──────────────────────────────────
+  /resource-constraint-violations:
+    get:
+      tags: [ResourceConflict]
+      operationId: listResourceConstraintViolations
+      summary: List all resource scheduling conflicts
+      description: |
+        Returns all cases where a resource (room, lecturer, or study group) is assigned
+        to two overlapping time slots on the same day. Each entry describes a pair of
+        conflicting time slots that share the same resource.
+        Returns an empty array if no conflicts exist.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ResourceConflict"
+        "500":
+          description: Internal server error
+
+  /room/{id}/constraint-violations:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    get:
+      tags: [ResourceConflict]
+      operationId: listRoomConstraintViolations
+      summary: List scheduling conflicts for a specific room
+      description: |
+        Returns all time slot pairs where this room is double-booked.
+        Returns an empty array if no conflicts exist.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ResourceConflict"
+        "404":
+          description: Invalid ID format
+        "500":
+          description: Internal server error
+
+  /lecturer/{id}/constraint-violations:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    get:
+      tags: [ResourceConflict]
+      operationId: listLecturerConstraintViolations
+      summary: List scheduling conflicts for a specific lecturer
+      description: |
+        Returns all time slot pairs where this lecturer is scheduled in two
+        overlapping time slots on the same day (via course assignments).
+        Returns an empty array if no conflicts exist.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ResourceConflict"
+        "404":
+          description: Invalid ID format
+        "500":
+          description: Internal server error
+
+  /study-group/{id}/constraint-violations:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    get:
+      tags: [ResourceConflict]
+      operationId: listStudyGroupConstraintViolations
+      summary: List scheduling conflicts for a specific study group
+      description: |
+        Returns all time slot pairs where this study group is assigned to two
+        overlapping time slots on the same day (via course assignments).
+        Returns an empty array if no conflicts exist.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ResourceConflict"
+        "404":
+          description: Invalid ID format
+        "500":
+          description: Internal server error
+
+  /study-group/{id}/related-constraint-violations:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    get:
+      tags: [ResourceConflict]
+      operationId: listStudyGroupRelatedConstraintViolations
+      summary: List all constraint violations related to a study group
+      description: |
+        Returns both resource conflicts and lecturer time constraint violations that
+        affect courses assigned to this study group. Useful for showing all relevant
+        violations for a study group in a single request.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RelatedConstraintViolations"
+        "404":
+          description: Invalid ID format
+        "500":
+          description: Internal server error
+
+  /resource-constraint-violations/ignore:
+    post:
+      tags: [ResourceConflict]
+      operationId: ignoreResourceConflict
+      summary: Mark a resource conflict as ignored
+      description: |
+        Records that a specific resource conflict (identified by the pair of time slots
+        and the affected resource) should be ignored. Returns 409 if the conflict is
+        already in the ignored list.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IgnoreResourceConflictRequest"
+      responses:
+        "201":
+          description: Conflict marked as ignored
+        "400":
+          description: Invalid request body or missing required fields
+        "409":
+          description: Conflict is already ignored (unique constraint violation)
+        "415":
+          description: Unsupported media type
+        "500":
+          description: Internal server error
+    delete:
+      tags: [ResourceConflict]
+      operationId: unignoreResourceConflict
+      summary: Remove a resource conflict from the ignored list
+      description: |
+        Removes a previously ignored resource conflict, so that it will appear again
+        in the list of active conflicts.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IgnoreResourceConflictRequest"
+      responses:
+        "200":
+          description: Ignored conflict removed successfully
+        "400":
+          description: Invalid request body or missing required fields
+        "404":
+          description: No matching ignored conflict found
+        "415":
+          description: Unsupported media type
+        "500":
+          description: Internal server error
+
+  /resource-constraint-violations/ignored:
+    get:
+      tags: [ResourceConflict]
+      operationId: listIgnoredResourceConflicts
+      summary: List all ignored resource conflicts
+      description: |
+        Returns all resource conflicts that have been explicitly marked as ignored.
+        Returns an empty array if no conflicts are ignored.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/IgnoredResourceConflict"
+        "500":
+          description: Internal server error
+
+  # ─── Lecturer Time Constraint Violations ────────────────────────────
+  /lecturer-time-constraint-violations:
+    get:
+      tags: [LecturerTimeConstraintViolation]
+      operationId: listLecturerTimeConstraintViolations
+      summary: List all lecturer time constraint violations
+      description: |
+        Returns all cases where a lecturer is scheduled in a time slot that overlaps
+        with one of their negative time constraints (times they marked as unavailable).
+        Each entry pairs the violated constraing with the violating time slot.
+        Returns an empty array if no violations exist.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LecturerTimeConstraintViolation"
+        "500":
+          description: Internal server error
+
+  /lecturer/{id}/time-constraint-violations:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    get:
+      tags: [LecturerTimeConstraintViolation]
+      operationId: listLecturerTimeConstraintViolationsByLecturer
+      summary: List time constraint violations for a specific lecturer
+      description: |
+        Returns all cases where this lecturer is scheduled in a time slot that overlaps
+        with one of their negative time constraints.
+        Returns an empty array if no violations exist.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LecturerTimeConstraintViolation"
+        "404":
+          description: Invalid lecturer ID format
+        "500":
+          description: Internal server error
+
+  /lecturer-time-constraint-violations/ignore:
+    post:
+      tags: [LecturerTimeConstraintViolation]
+      operationId: ignoreLecturerTimeConstraintViolation
+      summary: Mark a lecturer time constraint violation as ignored
+      description: |
+        Records that a specific violation (identified by the pair of constraint and
+        time slot) should be ignored. Returns 409 if the violation is already ignored.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IgnoreLecturerConstraintViolationRequest"
+      responses:
+        "201":
+          description: Violation marked as ignored
+        "400":
+          description: Invalid request body or missing required fields
+        "409":
+          description: Violation is already ignored (unique constraint violation)
+        "415":
+          description: Unsupported media type
+        "500":
+          description: Internal server error
+    delete:
+      tags: [LecturerTimeConstraintViolation]
+      operationId: unignoreLecturerTimeConstraintViolation
+      summary: Remove a lecturer time constraint violation from the ignored list
+      description: |
+        Removes a previously ignored violation, so that it will appear again
+        in the list of active violations.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IgnoreLecturerConstraintViolationRequest"
+      responses:
+        "200":
+          description: Ignored violation removed successfully
+        "400":
+          description: Invalid request body or missing required fields
+        "404":
+          description: No matching ignored violation found
+        "415":
+          description: Unsupported media type
+        "500":
+          description: Internal server error
+
+  /lecturer-time-constraint-violations/ignored:
+    get:
+      tags: [LecturerTimeConstraintViolation]
+      operationId: listIgnoredLecturerTimeConstraintViolations
+      summary: List all ignored lecturer time constraint violations
+      description: |
+        Returns all lecturer time constraint violations that have been explicitly
+        marked as ignored. Returns an empty array if no violations are ignored.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/IgnoredLecturerConstraintViolation"
+        "500":
+          description: Internal server error
+
+  # ─── Import / Export ────────────────────────────────────────────────
+  /export/dump:
+    get:
+      tags: [ImportExport]
+      operationId: getDumpExport
+      summary: Export the full database state as a backup bundle
+      description: |
+        Returns a ZIP bundle containing a PostgreSQL custom-format data dump and a
+        `metadata.json` file with schema version, an optional comment, and creation
+        timestamp. The bundle is also stored on the server and listed via
+        `GET /backups`, so this endpoint both downloads and creates a backup.
+      parameters:
+        - name: comment
+          in: query
+          required: false
+          description: Optional free-text comment stored in the backup metadata.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Backup bundle (ZIP)
+          headers:
+            Content-Disposition:
+              description: File attachment header with timestamped filename (`attachment; filename="2025-04-29_14-30-00.stdp"`).
+              schema:
+                type: string
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "500":
+          description: Internal server error
+
+  /import/dump:
+    post:
+      tags: [ImportExport]
+      operationId: postDumpImport
+      summary: Import a previously exported backup bundle
+      description: |
+        Replaces the current database state with the contents of the uploaded
+        backup bundle. The upload can be produced by `GET /export/dump`.
+        The dump is restored into a fresh schema matching its `schemaVersion`
+        and then migrated to the current schema version; if the restore or
+        migration fails, the previous database state is rolled back.
+        All existing data is replaced, only authorized users are preserved.
+        While the import is running, all other requests are answered with 503.
+        Maximum upload size is 15 MB.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: ZIP backup bundle as produced by `GET /export/dump`
+      responses:
+        "200":
+          description: Import completed successfully
+        "400":
+          description: Request was not multipart, or the bundle could not be parsed
+        "500":
+          description: Internal server error
+
+  /backups:
+    get:
+      tags: [ImportExport]
+      operationId: listBackups
+      summary: List all stored backups
+      description: |
+        Returns metadata for every backup currently stored on the server. Each
+        entry references the backup file by its ID, which can be used to restore them.
+        Returns an empty array if no backups exist.
+      responses:
+        "200":
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BackupIndexEntry"
+        "500":
+          description: Internal server error
+
+  /backups/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Backup identifier (16-character hex string from the backup index)
+        schema:
+          type: string
+    get:
+      tags: [ImportExport]
+      operationId: getBackup
+      summary: Download a stored backup bundle
+      description: Returns the ZIP bundle of a previously created backup.
+      responses:
+        "200":
+          description: Backup bundle
+          headers:
+            Content-Disposition:
+              description: File attachment header with the backup's timestamped filename (`attachment; filename="2025-04-29_14-30-00.stdp"`).
+              schema:
+                type: string
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: No backup with the given ID exists
+        "500":
+          description: Internal server error
+    delete:
+      tags: [ImportExport]
+      operationId: deleteBackup
+      summary: Delete a stored backup
+      description: Removes the backup ZIP file and its index entry.
+      responses:
+        "200":
+          description: Backup deleted successfully
+        "404":
+          description: No backup with the given ID exists
+        "500":
+          description: Internal server error
+
+  /backups/restore/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Backup identifier (16-character hex string from the backup index)
+        schema:
+          type: string
+    post:
+      tags: [ImportExport]
+      operationId: postBackupRestore
+      summary: Restore a stored backup
+      description: |
+        Restores the database state from a backup that is already stored on the
+        server (no upload needed). The dump is restored into a fresh schema
+        matching its `schemaVersion` and then migrated to the current schema
+        version; if the restore or migration fails, the previous database state
+        is rolled back.
+        While the restore is running, all other requests are answered with 503.
+      responses:
+        "200":
+          description: Restore completed successfully
+        "404":
+          description: No backup with the given ID exists
+        "500":
+          description: Internal server error
+
+  /truncate:
+    post:
+      tags: [ImportExport]
+      operationId: postTruncate
+      summary: Truncate the database after creating a backup
+      description: |
+        Creates a backup first (identical to `GET /export/dump`, it is stored
+        on the server and listed via `GET /backups`), then truncates all tables
+        except authorized users and returns the backup bundle as a download.
+        If the backup creation fails, the database is NOT truncated and 500 is
+        returned.
+        While the operation is running, all other requests are answered with 503.
+      parameters:
+        - name: comment
+          in: query
+          required: false
+          description: |
+            Optional free-text comment stored in the backup metadata. If omitted,
+            a default comment marking the backup as an automatic pre-truncate
+            backup is used.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Database truncated, backup bundle (ZIP) is returned
+          headers:
+            Content-Disposition:
+              description: File attachment header with timestamped filename (`attachment; filename="2025-04-29_14-30-00.stdp"`).
+              schema:
+                type: string
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "500":
+          description: Internal server error (the database is only truncated if the backup succeeded)
+
+  # ─── CSV / XLSX Import / Export ───────────────────────────────────────
+  /import/csv:
+    post:
+      tags: [ImportExport]
+      operationId: postCSVImport
+      summary: Import resources from a CSV or XLSX file
+      description: |
+        Imports resources from a CSV or XLSX file. The file format is detected automatically.
+
+        The resource type is detected automatically from the header row
+        (see documentation). Supported resource types are: lecturer, room,
+        degree_program, study_group, and course.
+
+        All rows are validated and inserted in a single transaction, that is rolled back in case an error occurs.
+        Maximum upload size is 15 MB.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: CSV or XLSX file with a header row matching one of the supported resource types
+      responses:
+        "200":
+          description: Import completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CSVImportSuccess"
+        "400":
+          description: Request was not multipart, could not be parsed, or file type is not CSV/XLSX
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CSVImportError"
+        "422":
+          description: Validation or constraint error during import
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CSVImportError"
+        "500":
+          description: Internal server error
+
+  /import/xlsx:
+    post:
+      tags: [ImportExport]
+      operationId: postXLSXImport
+      summary: Import resources from a CSV or XLSX file
+      description: |
+        Alias for `POST /import/csv` (backwards compatibility). Accepts both CSV and XLSX files,
+        identical behavior. See `POST /import/csv` for full documentation.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: CSV or XLSX file with a header row matching one of the supported resource types
+      responses:
+        "200":
+          description: Import completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CSVImportSuccess"
+        "400":
+          description: Request was not multipart, could not be parsed, or file type is not CSV/XLSX
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CSVImportError"
+        "422":
+          description: Validation or constraint error during import
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CSVImportError"
+        "500":
+          description: Internal server error
+
+  /export/csv/{resource}:
+    parameters:
+      - name: resource
+        in: path
+        required: true
+        description: The resource type to export
+        schema:
+          $ref: "#/components/schemas/CSVResourceType"
+    get:
+      tags: [ImportExport]
+      operationId: getCSVExport
+      summary: Export resources as a CSV file
+      description: |
+        Exports all entries of the specified resource type as a CSV file.
+        The response includes a `Content-Disposition` header for file download.
+      responses:
+        "200":
+          description: CSV file download
+          headers:
+            Content-Disposition:
+              description: File attachment header (`attachment; filename="export.csv"`)
+              schema:
+                type: string
+          content:
+            text/csv:
+              schema:
+                type: string
+        "400":
+          description: Invalid resource type in path parameter
+        "500":
+          description: Internal server error
+
+  /export/xlsx/{resource}:
+    parameters:
+      - name: resource
+        in: path
+        required: true
+        description: The resource type to export
+        schema:
+          $ref: "#/components/schemas/CSVResourceType"
+    get:
+      tags: [ImportExport]
+      operationId: getXLSXExport
+      summary: Export resources as an XLSX file
+      description: |
+        Exports all entries of the specified resource type as an XLSX file.
+        The response includes a `Content-Disposition` header for file download.
+      responses:
+        "200":
+          description: XLSX file download
+          headers:
+            Content-Disposition:
+              description: File attachment header (`attachment; filename="export.xlsx"`)
+              schema:
+                type: string
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: Invalid resource type in path parameter
+        "500":
+          description: Internal server error
+
+components:
+  parameters:
+    ResourceId:
+      name: id
+      in: path
+      required: true
+      description: Unique resource identifier
+      schema:
+        type: integer
+
+    CourseId:
+      name: course_id
+      in: path
+      required: true
+      description: Course ID
+      schema:
+        type: integer
+
+    StudyGroupTemplateId:
+      name: study_group_template_id
+      in: path
+      required: true
+      description: Study Group Template ID
+      schema:
+        type: integer
+
+    LecturerId:
+      name: lecturer_id
+      in: path
+      required: true
+      description: Lecturer ID
+      schema:
+        type: integer
+
+    TimeSlotId:
+      name: time_slot_id
+      in: path
+      required: true
+      description: Course time slot ID
+      schema:
+        type: integer
+
+    RoomId:
+      name: room_id
+      in: path
+      required: true
+      description: Room ID
+      schema:
+        type: integer
+
+  schemas:
+    # ─── Room ─────────────────────────────────────────────────────────────
+    Room:
+      type: object
+      description: A room / lab / lecture hall
+      required: [id]
+      properties:
+        id:
+          type: integer
+          description: Unique room identifier
+          examples: [1]
+        number:
+          type: string
+          description: Room number
+          examples: ["5.205"]
+        name:
+          type: string
+          description: Room name
+          examples: ["Cooler Raum"]
+        seats:
+          type: integer
+          description: Number of seats in the room
+          examples: [30]
+
+    RoomCreate:
+      type: object
+      description: Request body for creating a new room.
+      required: [number]
+      properties:
+        number:
+          type: string
+          description: Room number
+          examples: ["5.202"]
+        name:
+          type: ["string", "null"]
+          description: Room name
+          examples: ["Cooler Raum"]
+        seats:
+          type: ["integer", "null"]
+          description: Number of seats in the room
+          examples: [30]
+
+    RoomUpdate:
+      type: object
+      description: Request body for updating a room. All fields are optional (PATCH semantics).
+      properties:
+        number:
+          type: ["string", "null"]
+          description: Room number
+        name:
+          type: ["string", "null"]
+          description: Room name
+        seats:
+          type: ["integer", "null"]
+          description: Number of seats in the room
+
+    # ─── Lecturer ─────────────────────────────────────────────────────────
+    Lecturer:
+      type: object
+      description: |
+        A lecturer or teaching staff member.
+      required: [id]
+      properties:
+        id:
+          type: integer
+          description: Unique lecturer identifier
+          examples: [1]
+        first_name:
+          type: string
+          description: Lecturer's first name
+          examples: ["Max"]
+        last_name:
+          type: string
+          description: Lecturer's last name
+          examples: ["Mustermann"]
+        abbreviation:
+          type: string
+          description: |
+            Lecturer's abbreviation/short code.
+          examples: ["???"]
+        kind:
+          $ref: "#/components/schemas/LecturerKind"
+        notes:
+          type: string
+          description: Additional notes about the lecturer
+          examples: ["Mag ich nicht"]
+        is_relevant:
+          type: boolean
+          description: Soft deletion flag
+          examples: [true]
+
+    LecturerCreate:
+      type: object
+      description: |
+        Request body for creating a new lecturer.
+        If `is_relevant` is not provided, it defaults to `true`.
+        Returns 400 Bad Request if `kind` is not one of the allowed values.
+      required: [first_name, last_name, abbreviation, kind]
+      properties:
+        first_name:
+          type: string
+          description: Lecturer's first name
+          examples: ["Max"]
+        last_name:
+          type: string
+          description: Lecturer's last name
+          examples: ["Mustermann"]
+        abbreviation:
+          type: string
+          description: Lecturer's abbreviation/short code
+          examples: ["???"]
+        kind:
+          $ref: "#/components/schemas/LecturerKind"
+        notes:
+          type: ["string", "null"]
+          description: Additional notes about the lecturer
+        is_relevant:
+          type: ["boolean", "null"]
+          description: Soft deletion flag
+
+    LecturerUpdate:
+      type: object
+      description: Request body for updating a lecturer. All fields are optional (PATCH semantics).
+      properties:
+        first_name:
+          type: ["string", "null"]
+          description: Lecturer's first name
+        last_name:
+          type: ["string", "null"]
+          description: Lecturer's last name
+        abbreviation:
+          type: ["string", "null"]
+          description: Lecturer's abbreviation/short code
+        kind:
+          $ref: "#/components/schemas/LecturerKind"
+        notes:
+          type: ["string", "null"]
+          description: Additional notes about the lecturer
+        is_relevant:
+          type: ["boolean", "null"]
+          description: Soft deletion flag
+
+    # ─── Course ───────────────────────────────────────────────────────────
+    Course:
+      type: object
+      description: A course
+      required: [id]
+      properties:
+        id:
+          type: integer
+          description: Unique course identifier
+          examples: [1]
+        number:
+          type: string
+          description: Official course number
+          examples: ["1337"]
+        name:
+          type: string
+          description: Course name
+          examples: ["Einführung in API Dokumentation"]
+        sws:
+          type: integer
+          description: Semester hours per week (Semesterwochenstunden)
+          examples: [6]
+        credit_points:
+          type: integer
+          description: Credit points for the course
+          examples: [5]
+        abbreviation:
+          type: string
+          description: Course abbreviation
+          examples: ["EAD"]
+
+    CourseCreate:
+      type: object
+      description: Request body for creating a new course.
+      required: [number, name, abbreviation]
+      properties:
+        number:
+          type: string
+          description: Official course number
+          examples: ["1337"]
+        name:
+          type: string
+          description: Course name
+          examples: ["Einführung in API Dokumentation"]
+        sws:
+          type: ["integer", "null"]
+          description: Semester hours per week (Semesterwochenstunden)
+          examples: [6]
+        credit_points:
+          type: ["integer", "null"]
+          description: Credit points for the course
+          examples: [5]
+        abbreviation:
+          type: string
+          description: Course abbreviation
+          examples: ["EAD"]
+
+    CourseUpdate:
+      type: object
+      description: Request body for updating a course. All fields are optional (PATCH semantics).
+      properties:
+        number:
+          type: ["string", "null"]
+          description: Official course number
+        name:
+          type: ["string", "null"]
+          description: Course name
+        sws:
+          type: ["integer", "null"]
+          description: Semester hours per week
+        credit_points:
+          type: ["integer", "null"]
+          description: Credit points
+        abbreviation:
+          type: ["string", "null"]
+          description: Course abbreviation
+
+    # ─── Degree Program ───────────────────────────────────────────────────
+    DegreeProgram:
+      type: object
+      description: A degree program (Studiengang) such as Informatik
+      required: [id]
+      properties:
+        id:
+          type: integer
+          description: Unique degree program identifier
+          examples: [1]
+        name:
+          type: string
+          description: Degree program name (must be unique)
+          examples: ["Informatik B.Sc."]
+        abbreviation:
+          type: string
+          description: Degree program abbreviation
+          examples: ["INF"]
+
+    DegreeProgramCreate:
+      type: object
+      description: Request body for creating a new degree program.
+      required: [name, abbreviation]
+      properties:
+        name:
+          type: string
+          description: Degree program name (must be unique)
+          examples: ["Informatik B.Sc."]
+        abbreviation:
+          type: string
+          description: Degree program abbreviation
+          examples: ["INF"]
+
+    DegreeProgramUpdate:
+      type: object
+      description: Request body for updating a degree program. All fields are optional (PATCH semantics).
+      properties:
+        name:
+          type: ["string", "null"]
+          description: Degree program name
+        abbreviation:
+          type: ["string", "null"]
+          description: Degree program abbreviation
+
+    # ─── Study Group ──────────────────────────────────────────────────────
+    StudyGroup:
+      type: object
+      description: |
+        A study group represents a cohort of students in a specific semester
+        within a degree program.
+      required: [id]
+      properties:
+        id:
+          type: integer
+          description: Unique study group identifier
+          examples: [1]
+        semester_season:
+          $ref: "#/components/schemas/SemesterSeason"
+        semester_year:
+          type: integer
+          description: Year of the semester
+          examples: [2025]
+        student_count:
+          type: integer
+          description: Number of students in the group
+          examples: [30]
+        degree_program:
+          type: integer
+          description: ID of the associated degree program (foreign key)
+          examples: [1]
+
+    StudyGroupCreate:
+      type: object
+      description: Request body for creating a new study group. All fields are required.
+      required: [semester_season, semester_year, student_count, degree_program]
+      properties:
+        semester_season:
+          $ref: "#/components/schemas/SemesterSeason"
+        semester_year:
+          type: integer
+          description: Year of the semester
+          examples: [2025]
+        student_count:
+          type: integer
+          description: Number of students in the group
+          examples: [30]
+        degree_program:
+          type: integer
+          description: ID of the associated degree program (must exist)
+          examples: [1]
+        templates:
+          type: array
+          items:
+            type: integer
+          description: IDs of the study group templates to apply
+          examples: [[1, 2]]
+
+    StudyGroupUpdate:
+      type: object
+      description: |
+        Request body for updating a study group. All fields are optional (PATCH semantics).
+      properties:
+        semester_season:
+          oneOf:
+            - $ref: "#/components/schemas/SemesterSeason"
+            - type: "null"
+        semester_year:
+          type: ["integer", "null"]
+          description: Year of the semester
+        student_count:
+          type: ["integer", "null"]
+          description: Number of students in the group
+        degree_program:
+          type: ["integer", "null"]
+          description: ID of the associated degree program
+
+    # ─── Study Group Template ─────────────────────────────────────────────
+    StudyGroupTemplate:
+      type: object
+      description: |
+        A study group template represents a template for creating study groups
+      required: [id]
+      properties:
+        id:
+          type: integer
+          description: Unique study group template identifier
+          examples: [1]
+        name:
+          type: string
+          description: Human-readable study group template name
+          examples: ["INF-Template"]
+
+    StudyGroupTemplateCreate:
+      type: object
+      description: Request body for creating a new study group template. All fields are required.
+      required: [name]
+      properties:
+        name:
+          type: string
+          description: Human-readable study group template name
+          examples: ["INF-Template"]
+
+    StudyGroupTemplateUpdate:
+      type: object
+      description: |
+        Request body for updating a study group. All fields are optional (PATCH semantics).
+      properties:
+        name:
+          type: string
+          description: Human-readable study group template name
+          examples: ["INF-Template"]
+
+    StudyGroupTemplateCourse:
+      type: object
+      required: [template, course]
+      properties:
+        template:
+          type: integer
+        course:
+          type: integer
+
+    # ─── Course Time Slot ─────────────────────────────────────────────────
+    CourseTimeSlot:
+      type: object
+      description: |
+        A scheduled time slot for a course, specifying the day of week, start time, and duration.
+      required: [id]
+      properties:
+        id:
+          type: integer
+          description: Unique time slot identifier
+          examples: [1]
+        course:
+          type: integer
+          description: ID of the associated course (foreign key)
+          examples: [1]
+        weekday:
+          type: integer
+          description: Day of the week (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+          minimum: 0
+          maximum: 6
+          examples: [1]
+        at:
+          type: string
+          description: Start time of the slot (HH:MM or other formats accepted by PostgreSQL)
+          examples: ["08:00"]
+        duration:
+          type: string
+          description: Duration of the slot (Value with unit suffix or other formats accepted by PostgreSQL)
+          examples: ["1h"]
+        one_off_date:
+          type: string
+          description: The optional one off date of this time slot
+          examples: ["2026-06-10"]
+
+    CourseTimeSlotCreate:
+      type: object
+      description: Request body for creating a new course time slot. All fields are required.
+      required: [course, weekday, at, duration]
+      properties:
+        course:
+          type: integer
+          description: ID of the associated course (must exist)
+          examples: [1]
+        weekday:
+          type: integer
+          description: Day of the week (0 = Sunday, ..., 6 = Saturday)
+          minimum: 0
+          maximum: 6
+          examples: [1]
+        at:
+          type: string
+          description: Start time of the slot
+          examples: ["08:00"]
+        duration:
+          type: string
+          description: Duration of the slot
+          examples: ["1h"]
+        one_off_date:
+          type: string
+          description: The optional one off date of this time slot
+          examples: ["2026-06-10"]
+
+    CourseTimeSlotUpdate:
+      type: object
+      description: |
+        Request body for updating a course time slot. All fields are optional (PATCH semantics).
+        If `weekday` is provided, it must be between 0 and 6.
+        If `course` is provided, the referenced course must exist.
+      properties:
+        course:
+          type: ["integer", "null"]
+          description: ID of the associated course
+        weekday:
+          type: ["integer", "null"]
+          description: Day of the week (0-6)
+          minimum: 0
+          maximum: 6
+        at:
+          type: ["string", "null"]
+          description: Start time of the slot
+        duration:
+          type: ["string", "null"]
+          description: Duration of the slot
+        one_off_date:
+          type: string
+          description: The optional one off date of this time slot
+          examples: ["2026-06-10"]
+
+    # ─── Course Color ─────────────────────────────────────────────────────
+    CourseColor:
+      type: object
+      description: A color definition that can be assigned to courses for visual display.
+      required: [id]
+      properties:
+        id:
+          type: integer
+          description: Unique color identifier
+          examples: [1]
+        name:
+          type: string
+          description: Human-readable color name
+          examples: ["Blue"]
+        hex:
+          type: string
+          description: Hex color code in `#RRGGBB` format
+          pattern: "^#[A-Fa-f0-9]{6}$"
+          examples: ["#FAFAFA"]
+
+    CourseColorCreate:
+      type: object
+      description: Request body for creating a new course color.
+      required: [name, hex]
+      properties:
+        name:
+          type: string
+          description: Human-readable color name or meaning
+          examples: ["Externer Dozent"]
+        hex:
+          type: string
+          description: Hex color code in `#RRGGBB` format
+          pattern: "^#[A-Fa-f0-9]{6}$"
+          examples: ["#FAFAFA"]
+
+    CourseColorUpdate:
+      type: object
+      description: |
+        Request body for updating a course color. All fields are optional (PATCH semantics).
+        If `hex` is provided, it must match the pattern `#RRGGBB`.
+      properties:
+        name:
+          type: ["string", "null"]
+          description: Human-readable color name
+        hex:
+          type: ["string", "null"]
+          description: Hex color code in `#RRGGBB` format
+          pattern: "^#[A-Fa-f0-9]{6}$"
+
+    # ─── Lecturer Negative Time Constraint ────────────────────────────────
+    LecturerNegativeTimeConstraint:
+      type: object
+      description: |
+        A time constraint indicating when a lecturer is NOT available for scheduling.
+        Can be marked as "soft" (preference) or "hard" (absolute unavailability).
+      required: [id]
+      properties:
+        id:
+          type: integer
+          description: Unique constraint identifier
+          examples: [1]
+        lecturer:
+          type: integer
+          description: ID of the associated lecturer (foreign key)
+          examples: [1]
+        weekday:
+          type: integer
+          description: Day of the week (0 = Sunday, ..., 6 = Saturday)
+          minimum: 0
+          maximum: 6
+          examples: [3]
+        at:
+          type: string
+          description: Start time of the unavailable period (HH:MM or other formats accepted by PostgreSQL)
+          examples: ["15:00"]
+        duration:
+          type: string
+          description: Duration of the unavailable period (Value and unit suffix or other formats accepted by PostgreSQL)
+          examples: ["3h"]
+        soft:
+          type: boolean
+          description: |
+            Distinction between soft constraints (preference) and hard constraints (requirement)
+          examples: [false]
+
+    LecturerNegativeTimeConstraintCreate:
+      type: object
+      description: Request body for creating a new lecturer negative time constraint. All fields are required.
+      required: [lecturer, weekday, at, duration, soft]
+      properties:
+        lecturer:
+          type: integer
+          description: ID of the associated lecturer (must exist)
+          examples: [1]
+        weekday:
+          type: integer
+          description: Day of the week (0-6)
+          minimum: 0
+          maximum: 6
+          examples: [3]
+        at:
+          type: string
+          description: Start time of the unavailable period (HH:MM or other formats accepted by PostgreSQL)
+          examples: ["14:00"]
+        duration:
+          type: string
+          description: Duration of the unavailable period (Value and unit suffix or other formats accepted by PostgreSQL)
+          examples: ["3h"]
+        soft:
+          type: boolean
+          description: Whether this is a soft or hard constraint
+          examples: [false]
+
+    LecturerNegativeTimeConstraintUpdate:
+      type: object
+      description: |
+        Request body for updating a lecturer negative time constraint.
+        All fields are optional (PATCH semantics).
+      properties:
+        lecturer:
+          type: ["integer", "null"]
+          description: ID of the associated lecturer
+        weekday:
+          type: ["integer", "null"]
+          description: Day of the week (0-6)
+          minimum: 0
+          maximum: 6
+          examples: [3]
+        at:
+          type: ["string", "null"]
+          description: Start time of the unavailable period
+        duration:
+          type: ["string", "null"]
+          description: Duration of the unavailable period
+        soft:
+          type: ["boolean", "null"]
+          description: Whether this is a soft or hard constraint
+
+    # ─── Time Slot Room Assignment ─────────────────────────────────────────
+    TimeSlotRoomAssignment:
+      type: object
+      description: An assignment linking a course time slot to a room.
+      required: [time_slot, room]
+      properties:
+        time_slot:
+          type: integer
+          description: ID of the course time slot (foreign key)
+          examples: [1]
+        room:
+          type: integer
+          description: ID of the room (foreign key)
+          examples: [2]
+
+    # ─── Junction Types (for GlobalGalaktisch) ────────────────────────────
+    CourseColorAssignment:
+      type: object
+      required: [course, color]
+      properties:
+        course:
+          type: integer
+        color:
+          type: integer
+
+    CourseLecturer:
+      type: object
+      required: [course, lecturer]
+      properties:
+        course:
+          type: integer
+        lecturer:
+          type: integer
+
+    CourseStudyGroup:
+      type: object
+      required: [course, study_group]
+      properties:
+        course:
+          type: integer
+        study_group:
+          type: integer
+
+    # ─── Global Galaktisch ───────────────────────────────────────────────
+    GlobalGalaktisch:
+      type: object
+      description: Aggregated response containing all resources in a single request.
+      properties:
+        courses:
+          type: array
+          items:
+            $ref: "#/components/schemas/Course"
+        course_colors:
+          type: array
+          items:
+            $ref: "#/components/schemas/CourseColor"
+        course_color_assignments:
+          type: array
+          items:
+            $ref: "#/components/schemas/CourseColorAssignment"
+        course_lecturers:
+          type: array
+          items:
+            $ref: "#/components/schemas/CourseLecturer"
+        course_study_groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/CourseStudyGroup"
+        course_time_slots:
+          type: array
+          items:
+            $ref: "#/components/schemas/CourseTimeSlot"
+        degree_programs:
+          type: array
+          items:
+            $ref: "#/components/schemas/DegreeProgram"
+        lecturers:
+          type: array
+          items:
+            $ref: "#/components/schemas/Lecturer"
+        rooms:
+          type: array
+          items:
+            $ref: "#/components/schemas/Room"
+        study_groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/StudyGroup"
+        study_groups_templates:
+          type: array
+          items:
+            $ref: "#/components/schemas/StudyGroupTemplate"
+        study_groups_template_courses:
+          type: array
+          items:
+            $ref: "#/components/schemas/StudyGroupTemplateCourse"
+        time_constraints:
+          type: array
+          items:
+            $ref: "#/components/schemas/LecturerNegativeTimeConstraint"
+        time_slot_room_assignments:
+          type: array
+          items:
+            $ref: "#/components/schemas/TimeSlotRoomAssignment"
+
+    # ─── Resource Conflict ──────────────────────────────────────────────
+    ResourceConflict:
+      type: object
+      description: |
+        A scheduling conflict between two time slots that share the same resource
+        (room, lecturer, or study group) on the same day with overlapping times.
+      required: [resource_type, resource_id, weekday, slot_a_id, slot_a_course, slot_a_at, slot_a_duration, slot_b_id, slot_b_course, slot_b_at, slot_b_duration]
+      properties:
+        resource_type:
+          type: string
+          enum: [room, lecturer, study_group]
+          description: The type of resource that is double-booked
+          examples: ["room"]
+        resource_id:
+          type: integer
+          description: ID of the double-booked resource (references a room, lecturer, or study group depending on `resource_type`)
+          examples: [1]
+        weekday:
+          type: integer
+          description: Day of the week on which the conflict occurs (0 = Monday, ..., 6 = Sunday)
+          minimum: 0
+          maximum: 6
+          examples: [0]
+        slot_a_id:
+          type: integer
+          description: ID of the first conflicting time slot
+          examples: [1]
+        slot_a_course:
+          type: integer
+          description: Course ID of the first conflicting time slot
+          examples: [1]
+        slot_a_at:
+          type: string
+          description: Start time of the first conflicting time slot
+          examples: ["08:00:00+00"]
+        slot_a_duration:
+          type: string
+          description: Duration of the first conflicting time slot
+          examples: ["01:30:00"]
+        slot_b_id:
+          type: integer
+          description: ID of the second conflicting time slot
+          examples: [2]
+        slot_b_course:
+          type: integer
+          description: Course ID of the second conflicting time slot
+          examples: [2]
+        slot_b_at:
+          type: string
+          description: Start time of the second conflicting time slot
+          examples: ["09:00:00+00"]
+        slot_b_duration:
+          type: string
+          description: Duration of the second conflicting time slot
+          examples: ["01:30:00"]
+
+    IgnoreResourceConflictRequest:
+      type: object
+      description: |
+        Request body for ignoring or un-ignoring a resource conflict. Identifies
+        a conflict by its pair of time slots and the affected resource.
+      required: [slot_a_id, slot_b_id, resource_type, resource_id]
+      properties:
+        slot_a_id:
+          type: integer
+          description: ID of the first conflicting time slot
+          examples: [1]
+        slot_b_id:
+          type: integer
+          description: ID of the second conflicting time slot
+          examples: [2]
+        resource_type:
+          type: string
+          enum: [room, lecturer, study_group]
+          description: Type of the double-booked resource
+          examples: ["room"]
+        resource_id:
+          type: integer
+          description: ID of the double-booked resource
+          examples: [1]
+
+    IgnoredResourceConflict:
+      type: object
+      description: A resource conflict that has been marked as ignored.
+      required: [slot_a, slot_b, resource_type, resource_id]
+      properties:
+        slot_a:
+          type: integer
+          description: ID of the first conflicting time slot
+          examples: [1]
+        slot_b:
+          type: integer
+          description: ID of the second conflicting time slot
+          examples: [2]
+        resource_type:
+          type: string
+          enum: [room, lecturer, study_group]
+          description: Type of the double-booked resource
+          examples: ["room"]
+        resource_id:
+          type: integer
+          description: ID of the double-booked resource
+          examples: [1]
+
+    RelatedConstraintViolations:
+      type: object
+      description: |
+        Combined response containing both resource conflicts and lecturer time
+        constraint violations that are related to a given study group.
+      required: [resource_conflicts, lecturer_time_constraint_violations]
+      properties:
+        resource_conflicts:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResourceConflict"
+        lecturer_time_constraint_violations:
+          type: array
+          items:
+            $ref: "#/components/schemas/LecturerTimeConstraintViolation"
+
+    # ─── Lecturer Time Constraint Violation ────────────────────────────
+    LecturerTimeConstraintViolation:
+      type: object
+      description: |
+        A violation where a lecturer is scheduled in a time slot that overlaps with
+        one of their negative time constraints.
+      required: [constraint_id, lecturer_id, soft, weekday, constraint_at, constraint_duration, time_slot_id, course_id, slot_at, slot_duration]
+      properties:
+        constraint_id:
+          type: integer
+          description: ID of the violated negative time constraint
+          examples: [1]
+        lecturer_id:
+          type: integer
+          description: ID of the affected lecturer
+          examples: [1]
+        soft:
+          type: boolean
+          description: Whether the violated constraint is a soft constraint (preference) or hard constraint (requirement)
+          examples: [false]
+        weekday:
+          type: integer
+          description: Day of the week on which the violation occurs (0 = Monday, ..., 6 = Sunday)
+          minimum: 0
+          maximum: 6
+          examples: [3]
+        constraint_at:
+          type: string
+          description: Start time of the unavailability window defined by the constraint
+          examples: ["14:00:00+00"]
+        constraint_duration:
+          type: string
+          description: Duration of the unavailability window defined by the constraint
+          examples: ["03:00:00"]
+        time_slot_id:
+          type: integer
+          description: ID of the time slot that violates the constraint
+          examples: [5]
+        course_id:
+          type: integer
+          description: ID of the course scheduled in the violating time slot
+          examples: [2]
+        slot_at:
+          type: string
+          description: Start time of the violating time slot
+          examples: ["15:00:00+00"]
+        slot_duration:
+          type: string
+          description: Duration of the violating time slot
+          examples: ["01:30:00"]
+
+    IgnoreLecturerConstraintViolationRequest:
+      type: object
+      description: |
+        Request body for ignoring or un-ignoring a lecturer time constraint
+        violation. Identifies the violation by its (constraint, time slot) pair.
+      required: [constraint_id, time_slot_id]
+      properties:
+        constraint_id:
+          type: integer
+          description: ID of the violated negative time constraint
+          examples: [1]
+        time_slot_id:
+          type: integer
+          description: ID of the time slot that violates the constraint
+          examples: [5]
+
+    IgnoredLecturerConstraintViolation:
+      type: object
+      description: A lecturer time constraint violation that has been marked as ignored.
+      required: [constraint_id, time_slot_id]
+      properties:
+        constraint_id:
+          type: integer
+          description: ID of the ignored negative time constraint
+          examples: [1]
+        time_slot_id:
+          type: integer
+          description: ID of the time slot whose violation is ignored
+          examples: [5]
+
+    # ─── Import / Export ─────────────────────────────────────────────────
+    BackupIndexEntry:
+      type: object
+      description: Metadata for a single stored backup, as listed by `GET /backups`.
+      required: [id, filename, schemaVersion, comment, createdAt]
+      properties:
+        id:
+          type: string
+          description: 16-character hex identifier of the backup
+          examples: ["a1b2c3d4e5f60718"]
+        filename:
+          type: string
+          description: Original timestamped filename
+          examples: ["2025-04-29_14-30-00.stdp"]
+        schemaVersion:
+          type: integer
+          description: Database schema version at the time the backup was created
+          examples: [3]
+        comment:
+          type: string
+          description: Optional free-text comment supplied via the `comment` query parameter at export time (empty string if none)
+          examples: ["Pre-migration snapshot"]
+        createdAt:
+          type: string
+          format: date-time
+          description: RFC 3339 UTC timestamp at which the backup was created
+          examples: ["2025-04-29T14:30:00Z"]
+
+    # ─── CSV Import / Export ─────────────────────────────────────────────
+    CSVImportSuccess:
+      type: object
+      description: Successful CSV import response.
+      required: [imported_entries]
+      properties:
+        imported_entries:
+          type: integer
+          description: Number of rows successfully imported (empty rows are excluded)
+          examples: [42]
+
+    CSVImportError:
+      type: object
+      description: |
+        Error response returned when a CSV import fails validation or
+        violates a database constraint. The `line_nr` indicates the
+        CSV row that caused the error (1-based including header).
+      required: [line_nr, err_type, message]
+      properties:
+        line_nr:
+          type: integer
+          description: Line number in the CSV file where the error occurred. 0 for global errors.
+          examples: [5]
+        err_type:
+          $ref: "#/components/schemas/CSVImportErrorType"
+        message:
+          type: string
+          description: Human-readable english error message
+          examples: ["required field 'nachname' is empty"]
+
+    CSVImportErrorType:
+      type: string
+      description: |
+        Classification of a CSV/XLSX import error.
+        - `XLSX_TO_CSV`: XLSX file could not be read or converted to CSV
+        - `INVALID_CONTENT_TYPE`: uploaded file is neither CSV nor XLSX
+        - `INVALID_HEADER_NAME`: CSV header row does not match any known resource type
+        - `REQUIRED_FIELD_EMPTY`: a required field in the specified CSV row is empty
+        - `INVALID_FIELD_VALUE`: a field value fails validation (e.g. non-numeric where numeric expected, unrecognized enum value)
+        - `INVALID_JSON`: json field (extra_daten) syntactically incorrect
+        - `UNIQUE`: row violates a database unique constraint
+        - `INVALID_REFERENCE`: foreign key reference not found (e.g. degree program name in a study group CSV does not exist)
+        - `CHECK`: database check constraint violation
+        - `OTHER`: any other database or parsing error
+      enum:
+        - XLSX_TO_CSV
+        - INVALID_CONTENT_TYPE
+        - INVALID_HEADER_NAME
+        - REQUIRED_FIELD_EMPTY
+        - INVALID_FIELD_VALUE
+        - INVALID_JSON
+        - UNIQUE
+        - INVALID_REFERENCE
+        - CHECK
+        - OTHER
+      examples: ["REQUIRED_FIELD_EMPTY"]
+
+    CSVResourceType:
+      type: string
+      description: A resource type that can be exported or imported via CSV.
+      enum:
+        - lecturer
+        - room
+        - degree_program
+        - study_group
+        - course
+      examples: ["lecturer"]
+
+    # ─── Shared / Enum Types ──────────────────────────────────────────────
+    SemesterSeason:
+      type: string
+      description: The semester season
+      enum:
+        - winter
+        - summer
+      examples: ["winter"]
+
+    LecturerKind:
+      type: string
+      description: |
+        Category of a lecturer.
+      enum:
+        - regular
+        - lab_engineer
+        - adjunct_professor
+      examples: ["regular"]

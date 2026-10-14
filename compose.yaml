@@ -1,0 +1,8 @@
+services:
+  docs:
+    build: .
+    image: localhost/planlos-docs
+    container_name: planlos-docs
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8001:80"

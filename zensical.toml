@@ -1,0 +1,64 @@
+[project]
+site_name = "PlanLos Dokumentation"
+site_description = "Nutzer- und Entwicklerdokumentation des Stundenplan-Assistenzsystems PlanLos"
+
+extra_css = ["css/custom.css"]
+
+[project.theme]
+custom_dir = "overrides"
+language = "de"
+logo = "assets/logo.png"
+favicon = "assets/PlanLosLogoIcon.svg"
+features = [
+  "content.code.copy",
+  "navigation.footer",
+  "navigation.indexes",
+  "navigation.instant",
+  "navigation.path",
+  "navigation.sections",
+  "navigation.tabs",
+  "navigation.top",
+  "navigation.tracking",
+  "search.highlight",
+]
+
+font = false
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme)"
+toggle.icon = "lucide/sun-moon"
+toggle.name = "Helles Design"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+primary = "custom"
+accent = "custom"
+toggle.icon = "lucide/sun"
+toggle.name = "Dunkles Design"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+primary = "custom"
+accent = "custom"
+toggle.icon = "lucide/moon"
+toggle.name = "Systemeinstellung"
+
+[project.markdown_extensions]
+abbr = {}
+admonition = {}
+attr_list = {}
+md_in_html = {}
+tables = {}
+toc.permalink = true
+pymdownx.details = {}
+pymdownx.highlight.anchor_linenums = true
+pymdownx.inlinehilite = {}
+pymdownx.superfences = {}
+pymdownx.tabbed.alternate_style = true
+
+# Jinja variables for pages with "render_macros: true" (e.g. Impressum)
+[project.plugins.macros]
+include_yaml = ["settings.yml"]
+render_by_default = false
