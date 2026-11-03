@@ -26,10 +26,4 @@ docker compose up -d --build   # http://127.0.0.1:8001
 
 Alles in [`settings.yml`](settings.yml):
 
-- **`abschnitte`:** Benutzerhandbuch bzw. Entwicklung mit `false` komplett
-  aus dem Build nehmen.
-- **`impressum`:** Angaben für das Impressum. Leere Werte (`""`) blenden die
-  Zeile bzw. den Abschnitt aus.
-
-`python build.py` baut nach `site/` und berücksichtigt die Abschnitte
-(der Docker-Build nutzt das ebenfalls). `zensical serve` zeigt immer alles.
+- **`impressum`:** Angaben für das Impressum.
