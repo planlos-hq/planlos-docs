@@ -1,28 +1,2 @@
-# Documentation settings
-
-# Enable/disable sections (true = built, false = left out completely)
-abschnitte:
-  benutzerhandbuch: true
-  entwicklung: true
-
-# Values for the legal notice (docs/rechtliches/Impressum.md).
-# An empty value ("") hides the line or the whole section.
-# Do not enter private addresses or phone numbers of team members.
 impressum:
-  # Provider details according to § 5 DDG
-  anbieter:
-    name: "Name der  Hochschule"
-    einheit: "[Organisationseinheit, z. B. Fachbereich]"
-    strasse: "[Straße und Hausnummer]"
-    ort: "[PLZ Ort]"
-    land: "Deutschland"
-  vertreten_durch: "[Name, Funktion, z. B. Präsident:in der Hochschule]"
-  kontakt:
-    telefon: "[Telefonnummer]"
-    email: "[E-Mail-Adresse, möglichst Funktionspostfach]"
-  # Person responsible for content according to § 18 (2) MStV
-  verantwortlich:
-    name: "[Name oder Funktion]"
-    anschrift: "" # empty = provider address
-  # Privacy policy URL
-  datenschutz_url: "[Link zur Datenschutzerklärung]"
+  impressum_url: "https://example.org/impressum"
